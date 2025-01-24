@@ -65,6 +65,19 @@ def init_db(db_manager: DatabaseManager):
                 PRIMARY KEY (date, time)
             )
         """)
+
+        #heartbeat table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS heartbeat (
+            id INTEGER PRIMARY KEY CHECK (id=1),
+            last_heartbeat DATETIME
+        )
+    """)
+        
+        cursor.execute("""
+        INSERT OR IGNORE INTO heartbeat (id, last_heartbeat) VALUES (1, CURRENT_TIMESTAMP)
+    """)
+        
         conn.commit()
         logger.info("Database initialized successfully.")
     except sqlite3.Error as e:
@@ -78,7 +91,25 @@ def log_event(db_manager: DatabaseManager, event_type, details):
         conn = db_manager.connect()
         cursor = conn.cursor()
         cursor.execute("INSERT INTO event_log (event_type, details) VALUES (?, ?)", (event_type, details))
+        
         conn.commit()
         logger.info(f"Event: {event_type} | Details: {details}")
     except sqlite3.Error as e:
         logger.error(f"Failed to log event to database: {e}")
+
+def update_heartbeat(db_manager: DatabaseManager):
+    conn = db_manager.connect()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE heartbeat
+        SET last_heartbeat = CURRENT_TIMESTAMP
+        WHERE id = 1
+    """)
+    conn.commit()
+
+def get_last_heartbeat(db_manager: DatabaseManager):
+    conn = db_manager.connect()
+    cursor = conn.cursor()
+    cursor.execute("SELECT last_heartbeat FROM heartbeat WHERE id = 1")
+    row = cursor.fetchone()
+    return row[0] if row else None
