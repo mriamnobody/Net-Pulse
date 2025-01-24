@@ -1,4 +1,3 @@
-# logging_setup.py
 import logging
 import os
 
@@ -32,3 +31,8 @@ def setup_logger():
     )
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
+
+    # --- Suppress DEBUG logs from third-party libraries here ---
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("telegram").setLevel(logging.WARNING)
