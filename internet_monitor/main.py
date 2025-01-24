@@ -4,7 +4,7 @@ import time  # For sleep delays in user messages
 from internet_monitor.alerts import TelegramAlerts
 from internet_monitor.daily_stats import DailyStats
 from internet_monitor.monitor import monitor_internet
-from internet_monitor.db_manager import DatabaseManager, init_db
+from internet_monitor.db_manager import DatabaseManager, init_db, get_last_heartbeat, log_event
 from internet_monitor.logging_setup import logging, setup_logger
 from internet_monitor.stats_reporter import periodic_stats_report
 from internet_monitor.config import (
@@ -89,9 +89,54 @@ async def main():
     db_manager = DatabaseManager()
     init_db(db_manager)
 
-    # Create a DailyStats object
-    daily_stats = DailyStats()
-    daily_stats.db_manager = db_manager  # If you need the DB in daily_stats
+    # Check system downtime on startup
+    last_heartbeat_str = get_last_heartbeat(db_manager)
+    if last_heartbeat_str:
+        from datetime import datetime
+        fmt = "%Y-%m-%d %H:%M:%S"
+        try:
+            last_heartbeat_time = datetime.strptime(last_heartbeat_str, fmt)
+        except ValueError:
+            # If your DB’s default datetime format is different, adjust accordingly
+            last_heartbeat_time = datetime.fromisoformat(last_heartbeat_str)
+        
+        now = datetime.now()
+        difference = (now - last_heartbeat_time).total_seconds()
+        
+        # For example, if difference > 60, we consider it a real system downtime
+        if difference > 60:  # 1 minute threshold
+            # This is system downtime. We'll log it and notify
+            downtime_minutes = difference / 60.0
+            message = (
+                f"⛔ *System Offline Detected*\n"
+                f"Last heartbeat was at: {last_heartbeat_time}\n"
+                f"System was likely down for ~{downtime_minutes:.1f} minutes."
+            )
+
+            # Log event
+            log_event(db_manager, "System Down", message)
+
+            # We also add it to daily_stats
+            # But daily_stats isn't created yet - do that now:
+            daily_stats = DailyStats()
+            daily_stats.db_manager = db_manager
+            daily_stats.system_downtime_seconds += difference
+
+            # Alternatively, store it, and re-use the same `daily_stats` instance after creation
+            # but let's just keep going:
+            
+            # Possibly send an immediate Telegram alert
+            # But you need your "alerts" object for that. So let's create that early:
+            alerts = TelegramAlerts(bot_token, chat_id)
+            await alerts.send_alert(message)
+        else:
+            # No large gap, or the difference is negligible
+            daily_stats = DailyStats()
+            daily_stats.db_manager = db_manager
+    else:
+        # No recorded heartbeat in DB, so just create a fresh daily_stats
+        daily_stats = DailyStats()
+        daily_stats.db_manager = db_manager
 
     # Create Telegram alerts instance
     alerts = TelegramAlerts(bot_token, chat_id)
@@ -102,7 +147,6 @@ async def main():
 
     # Run forever (or until an error/KeyboardInterrupt)
     await asyncio.gather(monitor_task, stats_task)
-
 
 if __name__ == "__main__":
     try:
