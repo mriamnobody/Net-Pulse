@@ -4,3 +4,5 @@ __pycache__/
 *.log
 config.json
 venv/
+logs/*.log
+internet_monitor\__pycache__
