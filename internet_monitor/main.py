@@ -41,7 +41,6 @@ async def main():
             
             # (4) "Validating configuration..."
             print("🔎 Validating configuration...")
-            time.sleep(1)
             
             # Attempt to validate
             bot_token = config["BOT_TOKEN"]
