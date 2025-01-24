@@ -23,6 +23,7 @@ class DailyStats:
         self.failed_pings = 0
         self.ping_times = []
         self.longest_downtime = 0
+        self.system_downtime_seconds = 0
         self.current_downtime_start = None
         self.server_stats = {
             "1.1.1.1": {"downtime": 0, "high_pings": 0},
@@ -106,6 +107,7 @@ class DailyStats:
             "packet_loss": packet_loss,
             "average_ping": average_ping,
             "max_ping": max_ping,
+            "system_downtime": self.system_downtime_seconds,
             "most_stable_server": most_stable_server,
             "longest_downtime": self.longest_downtime
         }
