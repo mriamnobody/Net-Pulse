@@ -28,6 +28,7 @@ def log_daily_stats_to_file(stats):
         f"📊 Max Ping: {stats['max_ping']:.2f} ms\n"
         f"🏆 Most Stable Server: {stats['most_stable_server']}\n"
         f"⏳ Longest Downtime: {stats['longest_downtime'] / 60:.2f} min\n"
+        f"🛑 *System Downtime*: {stats['system_downtime'] / 60:.2f} min\n"
         f"------------------------------------\n"
     )
     with open(DAILY_STATS_FILE, "a", encoding='utf-8') as f:
@@ -43,8 +44,8 @@ def log_daily_stats_to_db(db_manager: DatabaseManager, stats):
             INSERT INTO daily_stats (
                 date, time, uptime_seconds, downtime_seconds, high_ping_count,
                 high_ping_seconds, internet_failures, total_pings, failed_pings,
-                average_ping, max_ping, longest_downtime
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                average_ping, max_ping, longest_downtime, system_downtime_seconds
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             date_str, time_str,
             stats['uptime'],
@@ -56,7 +57,8 @@ def log_daily_stats_to_db(db_manager: DatabaseManager, stats):
             stats['failed_pings'],
             stats['average_ping'],
             stats['max_ping'],
-            stats['longest_downtime']
+            stats['longest_downtime'],
+            stats['system_downtime']   # NEW
         ))
         conn.commit()
     except Exception as e:
@@ -75,16 +77,17 @@ def get_aggregated_stats(db_manager: DatabaseManager, period):
         if period == 'weekly':
             cursor.execute("""
                 SELECT
-                    SUM(uptime_seconds) as uptime_seconds,
-                    SUM(downtime_seconds) as downtime_seconds,
-                    SUM(high_ping_count) as high_ping_count,
-                    SUM(high_ping_seconds) as high_ping_seconds,
-                    SUM(internet_failures) as internet_failures,
-                    SUM(total_pings) as total_pings,
-                    SUM(failed_pings) as failed_pings,
-                    AVG(average_ping) as average_ping,
-                    MAX(max_ping) as max_ping,
-                    MAX(longest_downtime) as longest_downtime
+                    SUM(uptime_seconds),
+                    SUM(downtime_seconds),
+                    SUM(high_ping_count),
+                    SUM(high_ping_seconds),
+                    SUM(internet_failures),
+                    SUM(total_pings),
+                    SUM(failed_pings),
+                    AVG(average_ping),
+                    MAX(max_ping),
+                    MAX(longest_downtime),
+                    SUM(system_downtime_seconds)
                 FROM daily_stats
                 WHERE date >= date('now', '-6 days')
             """)
@@ -100,7 +103,8 @@ def get_aggregated_stats(db_manager: DatabaseManager, period):
                     SUM(failed_pings) as failed_pings,
                     AVG(average_ping) as average_ping,
                     MAX(max_ping) as max_ping,
-                    MAX(longest_downtime) as longest_downtime
+                    MAX(longest_downtime) as longest_downtime,
+                    SUM(system_downtime_seconds) as system_downtime_seconds
                 FROM daily_stats
                 WHERE date >= date('now', 'start of month')
             """)
@@ -119,7 +123,8 @@ def get_aggregated_stats(db_manager: DatabaseManager, period):
                 'failed_pings': result[6] or 0,
                 'average_ping': result[7] or 0,
                 'max_ping': result[8] or 0,
-                'longest_downtime': result[9] or 0
+                'longest_downtime': result[9] or 0,
+                'system_downtime': result[10] or 0
             }
             total_time = aggregated_stats['uptime'] + aggregated_stats['downtime']
             uptime_percentage = (aggregated_stats['uptime'] / total_time * 100) if total_time > 0 else 0
@@ -147,6 +152,7 @@ def log_weekly_stats_to_file(stats):
         f"📈 Average Ping: {stats['average_ping']:.2f} ms\n"
         f"📊 Max Ping: {stats['max_ping']:.2f} ms\n"
         f"⏳ Longest Downtime: {stats['longest_downtime'] / 60:.2f} min\n"
+        f"🛑 *System Downtime*: {stats['system_downtime'] / 60:.2f} min\n"
         f"------------------------------------\n"
     )
     with open(DAILY_STATS_FILE, "a", encoding='utf-8') as f:
@@ -164,6 +170,7 @@ def log_monthly_stats_to_file(stats):
         f"📈 Average Ping: {stats['average_ping']:.2f} ms\n"
         f"📊 Max Ping: {stats['max_ping']:.2f} ms\n"
         f"⏳ Longest Downtime: {stats['longest_downtime'] / 60:.2f} min\n"
+        f"🛑 *System Downtime*: {stats['system_downtime'] / 60:.2f} min\n"
         f"------------------------------------\n"
     )
     with open(DAILY_STATS_FILE, "a", encoding='utf-8') as f:
@@ -179,6 +186,7 @@ async def send_daily_stats(alerts: TelegramAlerts, stats):
         f"🚨 Total number of Internet Failures: {stats['internet_failures']} times\n"
         f"⏱ Time in Internet Failure: {stats['downtime'] / 60:.2f} min\n"
         f"⏳ Longest Downtime: {stats['longest_downtime'] / 60:.2f} min\n"
+        f"🛑 *System Downtime*: {stats['system_downtime'] / 60:.2f} min\n"
     )
     await alerts.send_alert(summary)
 
@@ -194,6 +202,7 @@ async def send_weekly_stats(alerts: TelegramAlerts, stats):
         f"📈 Average Ping: {stats['average_ping']:.2f} ms\n"
         f"📊 Max Ping: {stats['max_ping']:.2f} ms\n"
         f"⏳ Longest Downtime: {stats['longest_downtime'] / 60:.2f} min\n"
+        f"🛑 *System Downtime*: {stats['system_downtime'] / 60:.2f} min\n"
     )
     await alerts.send_alert(summary)
 
@@ -209,6 +218,7 @@ async def send_monthly_stats(alerts: TelegramAlerts, stats):
         f"📈 Average Ping: {stats['average_ping']:.2f} ms\n"
         f"📊 Max Ping: {stats['max_ping']:.2f} ms\n"
         f"⏳ Longest Downtime: {stats['longest_downtime'] / 60:.2f} min\n"
+        f"🛑 *System Downtime*: {stats['system_downtime'] / 60:.2f} min\n"
     )
     await alerts.send_alert(summary)
 
