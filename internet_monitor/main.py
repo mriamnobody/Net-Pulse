@@ -1,36 +1,15 @@
 import asyncio
-import logging
-import sys
-
+from internet_monitor.alerts import TelegramAlerts
+from internet_monitor.daily_stats import DailyStats
+from internet_monitor.monitor import monitor_internet
+from internet_monitor.db_manager import DatabaseManager, init_db
+from internet_monitor.logging_setup import logging, setup_logger
+from internet_monitor.stats_reporter import periodic_stats_report
 from internet_monitor.config import (
     load_config,
     save_config,
     prompt_and_validate_bot_details
 )
-from internet_monitor.db_manager import DatabaseManager, init_db
-from internet_monitor.daily_stats import DailyStats
-from internet_monitor.monitor import monitor_internet
-from internet_monitor.stats_reporter import periodic_stats_report
-from internet_monitor.alerts import TelegramAlerts
-
-
-def setup_logger():
-    """
-    Configure root logger to log to both console and file.
-    """
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_formatter = logging.Formatter("%(asctime)s - [%(levelname)s] %(message)s")
-    console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
-
-    file_handler = logging.FileHandler("internet_monitor.log", encoding="utf-8")
-    file_formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s - [Line: %(lineno)d]")
-    file_handler.setFormatter(file_formatter)
-    logger.addHandler(file_handler)
-
 
 async def main():
     setup_logger()
