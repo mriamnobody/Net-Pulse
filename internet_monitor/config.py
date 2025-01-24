@@ -1,3 +1,4 @@
+# config.py
 import json
 import logging
 import os
@@ -32,21 +33,20 @@ def save_config(config):
 async def prompt_and_validate_bot_details():
     """
     Continuously prompt for bot token and chat ID until valid or until user quits.
-    If the user enters 'q' for either prompt, we exit the script.
     Returns the (bot_token, chat_id) once validated.
     """
     while True:
-        print("\n--- Telegram Bot Credentials Setup/Validation ---")
-        print("Type 'q' at any prompt to quit.")
+        print("\n🤖🔐 --- Telegram Bot Credentials Setup & Validation --- 🔐🤖")
+        print("Type 'q' at any prompt to quit. (🛑)")
 
-        bot_token = input("Please enter your Telegram Bot Token: ").strip()
+        bot_token = input("Please enter your Telegram Bot Token (🤖🔑): ").strip()
         if bot_token.lower() == "q":
-            print("Exiting script...")
+            print("🚪 Exiting script...")
             sys.exit(0)
 
-        chat_id = input("Please enter your Telegram Chat ID: ").strip()
+        chat_id = input("Please enter your Telegram Chat ID (🆔): ").strip()
         if chat_id.lower() == "q":
-            print("Exiting script...")
+            print("🚪 Exiting script...")
             sys.exit(0)
 
         # Validate credentials by calling Telegram Bot API
@@ -57,9 +57,9 @@ async def prompt_and_validate_bot_details():
                 chat_id=chat_id,
                 text="Test message: Bot credentials look good!"
             )
-            print(f"Credentials validated! Bot username: @{me.username}")
+            print(f"✅ Credentials validated! Bot username: @{me.username}")
             return bot_token, chat_id
 
         except TelegramError as e:
-            print(f"Invalid credentials or error occurred: {e}")
+            print(f"❌ Invalid credentials or error occurred: {e}")
             print("Please try again or type 'q' to quit.\n")
