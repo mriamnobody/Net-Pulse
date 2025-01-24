@@ -31,22 +31,25 @@ class DatabaseManager:
             self.conn = None
             logger.info("Database connection closed.")
 
+
 def init_db(db_manager: DatabaseManager):
     """
-    Create the required tables if they do not already exist.
+    Create the required tables if they do not already exist, using local time instead of UTC.
     """
     conn = db_manager.connect()
     try:
         cursor = conn.cursor()
-        # Event log table
+
+        # Event log table (store local time by default)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS event_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_type TEXT NOT NULL,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                timestamp DATETIME DEFAULT (datetime('now','localtime')),
                 details TEXT
             )
         """)
+
         # Daily stats table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS daily_stats (
@@ -62,50 +65,59 @@ def init_db(db_manager: DatabaseManager):
                 average_ping REAL,
                 max_ping REAL,
                 longest_downtime REAL,
+                system_downtime_seconds REAL,
                 PRIMARY KEY (date, time)
             )
         """)
 
-        #heartbeat table
+        # Heartbeat table (store local time by default)
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS heartbeat (
-            id INTEGER PRIMARY KEY CHECK (id=1),
-            last_heartbeat DATETIME
-        )
-    """)
-        
+            CREATE TABLE IF NOT EXISTS heartbeat (
+                id INTEGER PRIMARY KEY CHECK (id=1),
+                last_heartbeat DATETIME DEFAULT (datetime('now','localtime'))
+            )
+        """)
+
+        # Insert heartbeat row if not present
         cursor.execute("""
-        INSERT OR IGNORE INTO heartbeat (id, last_heartbeat) VALUES (1, CURRENT_TIMESTAMP)
-    """)
-        
+            INSERT OR IGNORE INTO heartbeat (id, last_heartbeat)
+            VALUES (1, datetime('now','localtime'))
+        """)
+
         conn.commit()
         logger.info("Database initialized successfully.")
     except sqlite3.Error as e:
         logger.error(f"Failed to initialize database: {e}")
 
+
 def log_event(db_manager: DatabaseManager, event_type, details):
     """
-    Log an event into the event_log table.
+    Log an event into the event_log table, which defaults to local time already.
     """
     try:
         conn = db_manager.connect()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO event_log (event_type, details) VALUES (?, ?)", (event_type, details))
-        
+        cursor.execute("INSERT INTO event_log (event_type, details) VALUES (?, ?)",
+                       (event_type, details))
         conn.commit()
         logger.info(f"Event: {event_type} | Details: {details}")
     except sqlite3.Error as e:
         logger.error(f"Failed to log event to database: {e}")
 
+
 def update_heartbeat(db_manager: DatabaseManager):
+    """
+    Updates heartbeat with local time (instead of UTC).
+    """
     conn = db_manager.connect()
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE heartbeat
-        SET last_heartbeat = CURRENT_TIMESTAMP
+        SET last_heartbeat = datetime('now','localtime')
         WHERE id = 1
     """)
     conn.commit()
+
 
 def get_last_heartbeat(db_manager: DatabaseManager):
     conn = db_manager.connect()
