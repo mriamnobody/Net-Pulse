@@ -4,7 +4,7 @@ from datetime import datetime
 import subprocess
 
 from internet_monitor.alerts import TelegramAlerts
-from internet_monitor.db_manager import log_event
+from internet_monitor.db_manager import log_event, update_heartbeat
 from internet_monitor.daily_stats import DailyStats, HIGH_PING_THRESHOLD
 
 logger = logging.getLogger(__name__)
@@ -115,5 +115,8 @@ async def monitor_internet(alerts: TelegramAlerts, daily_stats: DailyStats):
 
         # Update immediate state changes
         await net_monitor.update_state(status, ping_times, alerts, daily_stats)
+
+        # Update heartbeat to indicate we are alive
+        update_heartbeat(daily_stats.db_manager)
 
         await asyncio.sleep(PING_INTERVAL)
